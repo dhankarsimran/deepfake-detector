@@ -94,7 +94,7 @@ optimizer = optim.Adam(model.parameters(), lr=1e-4)
 # -------------------------
 # Training loop
 # -------------------------
-epochs = 5
+epochs = 10
 best_acc = 0.0
 
 for epoch in range(epochs):
