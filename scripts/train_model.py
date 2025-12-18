@@ -26,6 +26,10 @@ print("Using device:", device)
 # -------------------------
 # Dataset paths (Google Drive)
 # -------------------------
+SAVE_DIR = "/content/drive/MyDrive/deepfake_models"
+os.makedirs(SAVE_DIR, exist_ok=True)
+SAVE_PATH = os.path.join(SAVE_DIR, "best_model.pth")
+
 TRAIN_DIR = "/content/drive/MyDrive/deepfake_dataset/train"
 VAL_DIR = "/content/drive/MyDrive/deepfake_dataset/valid"
 
@@ -155,8 +159,9 @@ for epoch in range(epochs):
     # -------- SAVE BEST MODEL (AUC-based) --------
     if auc > best_auc:
         best_auc = auc
-        torch.save(model.state_dict(), "best_model.pth")
-        print("✅ Best model saved (based on ROC-AUC)")
+        torch.save(model.state_dict(), SAVE_PATH)
+        print(f"✅ Model saved to {SAVE_PATH}")
+
 
 print("\nTraining complete.")
 print(f"Best Validation ROC-AUC: {best_auc:.4f}")
