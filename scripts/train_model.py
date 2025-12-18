@@ -12,6 +12,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
+from sklearn.metrics import f1_score, roc_auc_score
+
 from src.image_dataset import DeepfakeImageDataset
 from src.model import TinyCNN
 
@@ -22,7 +24,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device)
 
 # -------------------------
-# Paths (Google Drive)
+# Dataset paths (Google Drive)
 # -------------------------
 TRAIN_DIR = "/content/drive/MyDrive/deepfake_dataset/train"
 VAL_DIR = "/content/drive/MyDrive/deepfake_dataset/valid"
@@ -34,19 +36,13 @@ train_transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
-    transforms.Normalize(
-        mean=[0.5, 0.5, 0.5],
-        std=[0.5, 0.5, 0.5]
-    )
+    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 ])
 
 val_transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    transforms.Normalize(
-        mean=[0.5, 0.5, 0.5],
-        std=[0.5, 0.5, 0.5]
-    )
+    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 ])
 
 # -------------------------
@@ -62,8 +58,11 @@ val_dataset = DeepfakeImageDataset(
     transform=val_transform
 )
 
+print(f"Train samples: {len(train_dataset)}")
+print(f"Validation samples: {len(val_dataset)}")
+
 # -------------------------
-# DataLoaders (Drive optimized)
+# DataLoaders
 # -------------------------
 train_loader = DataLoader(
     train_dataset,
@@ -81,27 +80,27 @@ val_loader = DataLoader(
     pin_memory=True
 )
 
-print(f"Train samples: {len(train_dataset)}")
-print(f"Validation samples: {len(val_dataset)}")
-
 # -------------------------
-# Model
+# Model, Loss, Optimizer
 # -------------------------
 model = TinyCNN().to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
 # -------------------------
-# Training loop
+# Training settings
 # -------------------------
 epochs = 10
-best_acc = 0.0
+best_auc = 0.0
 
+# -------------------------
+# Training loop
+# -------------------------
 for epoch in range(epochs):
-    print(f"\nEpoch {epoch+1}/{epochs}")
-    print("-" * 30)
+    print(f"\nEpoch {epoch + 1}/{epochs}")
+    print("-" * 35)
 
-    # -------- Training --------
+    # -------- TRAIN --------
     model.train()
     running_loss = 0.0
 
@@ -117,13 +116,17 @@ for epoch in range(epochs):
 
         running_loss += loss.item()
 
-    avg_loss = running_loss / len(train_loader)
-    print(f"Train Loss: {avg_loss:.4f}")
+    train_loss = running_loss / len(train_loader)
+    print(f"Train Loss: {train_loss:.4f}")
 
-    # -------- Validation --------
+    # -------- VALIDATION --------
     model.eval()
     correct = 0
     total = 0
+
+    all_labels = []
+    all_preds = []
+    all_probs = []
 
     with torch.no_grad():
         for images, labels in val_loader:
@@ -131,19 +134,29 @@ for epoch in range(epochs):
             labels = labels.to(device, non_blocking=True)
 
             outputs = model(images)
+            probs = torch.softmax(outputs, dim=1)[:, 1]
             _, predicted = torch.max(outputs, 1)
 
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-    acc = 100.0 * correct / total
-    print(f"Validation Accuracy: {acc:.2f}%")
+            all_labels.extend(labels.cpu().numpy())
+            all_preds.extend(predicted.cpu().numpy())
+            all_probs.extend(probs.cpu().numpy())
 
-    # -------- Save best model --------
-    if acc > best_acc:
-        best_acc = acc
-        torch.save(model.state_dict(), "best_tinycnn_deepfake.pth")
-        print("✅ Best model saved")
+    acc = 100.0 * correct / total
+    f1 = f1_score(all_labels, all_preds)
+    auc = roc_auc_score(all_labels, all_probs)
+
+    print(f"Validation Accuracy : {acc:.2f}%")
+    print(f"Validation F1 Score : {f1:.4f}")
+    print(f"Validation ROC-AUC  : {auc:.4f}")
+
+    # -------- SAVE BEST MODEL (AUC-based) --------
+    if auc > best_auc:
+        best_auc = auc
+        torch.save(model.state_dict(), "best_model.pth")
+        print("✅ Best model saved (based on ROC-AUC)")
 
 print("\nTraining complete.")
-print(f"Best Validation Accuracy: {best_acc:.2f}%")
+print(f"Best Validation ROC-AUC: {best_auc:.4f}")
