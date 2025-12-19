@@ -70,7 +70,7 @@ print(f"Validation samples: {len(val_dataset)}")
 # -------------------------
 train_loader = DataLoader(
     train_dataset,
-    batch_size=32,          # reduce to 16 if OOM
+    batch_size=16,          # reduce to 16 if OOM
     shuffle=True,
     num_workers=2,
     pin_memory=True
@@ -78,7 +78,7 @@ train_loader = DataLoader(
 
 val_loader = DataLoader(
     val_dataset,
-    batch_size=32,
+    batch_size=16,
     shuffle=False,
     num_workers=2,
     pin_memory=True
