@@ -1,7 +1,9 @@
 import sys
 import os
 
-# 🔧 Fix import path
+# -------------------------
+# Fix import path
+# -------------------------
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 )
@@ -32,7 +34,7 @@ if not os.path.exists(MODEL_PATH):
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
+    transforms.Normalize([0.5]*3, [0.5]*3)
 ])
 
 # -------------------------
@@ -63,15 +65,23 @@ image = transform(image).unsqueeze(0).to(device)
 # -------------------------
 with torch.no_grad():
     output = model(image)
-    prob_fake = torch.softmax(output, dim=1)[0, 1].item()
+    probs = torch.softmax(output, dim=1)[0]
 
-label = "FAKE" if prob_fake >= 0.5 else "REAL"
-confidence = prob_fake if label == "FAKE" else (1 - prob_fake)
+# Dataset mapping
+prob_fake = probs[0].item()   # fake = 0
+prob_real = probs[1].item()   # real = 1
+
+if prob_fake > prob_real:
+    label = "FAKE"
+    confidence = prob_fake
+else:
+    label = "REAL"
+    confidence = prob_real
 
 # -------------------------
 # Output
 # -------------------------
-print("\n🔍 Deepfake Detection Result")
-print("----------------------------")
+print("\n🔍 Deepfake Image Detection Result")
+print("---------------------------------")
 print(f"Prediction : {label}")
 print(f"Confidence : {confidence:.2f}")
