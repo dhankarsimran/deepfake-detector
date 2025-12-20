@@ -19,8 +19,8 @@ from src.image_dataset_v2 import DeepfakeImageDataset
 # Drive path (your dataset is in Drive)
 # -------------------------
 ROOT_DIR = "/content/drive/MyDrive"
-train_dir = os.path.join(ROOT_DIR, "deepfake_detector/train")
-val_dir = os.path.join(ROOT_DIR, "deepfake_detector/valid")
+train_dir = os.path.join(ROOT_DIR, "deepfake_dataset/train")
+val_dir = os.path.join(ROOT_DIR, "deepfake_dataset/valid")
 model_save_path = os.path.join(ROOT_DIR, "saved_models/best_model_resnet.pth")
 os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
 
