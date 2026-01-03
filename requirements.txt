@@ -2,6 +2,10 @@ torch
 torchvision
 streamlit
 opencv-python
-Pillow
+pillow
 numpy
 requests
+tqdm
+scikit-learn
+facenet-pytorch
+opencv-python 
