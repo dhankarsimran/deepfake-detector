@@ -49,7 +49,7 @@ with tab1:
 
     if image_file:
         image = Image.open(image_file).convert("RGB")
-        st.image(image, caption="Uploaded Image", width=400)  # Controlled width
+        st.image(image, caption=f"Uploaded Image ({image.width}x{image.height})", width=400)
 
         if st.button("Detect Image"):
             label, confidence = predict_image(model, image)
@@ -61,6 +61,7 @@ with tab1:
 # =============================
 with tab2:
     st.subheader("Video Deepfake Detection")
+
     video_file = st.file_uploader("Upload a video", type=["mp4", "avi", "mov"])
 
     if video_file:
@@ -68,13 +69,15 @@ with tab2:
             tmp.write(video_file.read())
             video_path = tmp.name
 
-        st.video(video_path, format="video/mp4", start_time=0)
-
+        st.video(video_path, format="video/mp4", start_time=0)  # default size is reasonable
         if st.button("Detect Video"):
-            label, confidence, frames = predict_video(model, video_path)
+            with st.spinner("Analyzing video..."):
+                label, confidence, frames = predict_video(model, video_path)
+
             st.success(f"Prediction: **{label}**")
             st.info(f"Confidence: **{confidence:.2f}**")
             st.caption(f"Frames analyzed: {frames}")
+
 
 # =============================
 # VIDEO URL TAB

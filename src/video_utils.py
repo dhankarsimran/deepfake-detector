@@ -1,9 +1,6 @@
+import torch
 import numpy as np
-import tempfile
-import os
-
-from src.image_utils import preprocess_image
-
+from src.image_utils import preprocess_image  # your existing preprocessing function
 
 def predict_video(model, video_path, from_url=False, max_frames=20):
     """
@@ -11,9 +8,8 @@ def predict_video(model, video_path, from_url=False, max_frames=20):
     Returns: label, confidence, frames_used
     """
 
-    # ✅ Lazy import (CRITICAL for Streamlit Cloud)
+    # Lazy imports
     import cv2
-    import torch
 
     frames = []
     cap = cv2.VideoCapture(video_path)
