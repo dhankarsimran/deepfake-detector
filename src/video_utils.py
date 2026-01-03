@@ -1,60 +1,55 @@
-import cv2
-import torch
 import numpy as np
 import tempfile
-import requests
-from torchvision import transforms
-from PIL import Image
+import os
 
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize([0.5]*3, [0.5]*3)
-])
+from src.image_utils import preprocess_image
 
-def extract_frames(video_path, fps=1):
-    cap = cv2.VideoCapture(video_path)
+
+def predict_video(model, video_path, from_url=False, max_frames=20):
+    """
+    Predict deepfake on a video file or URL.
+    Returns: label, confidence, frames_used
+    """
+
+    # ✅ Lazy import (CRITICAL for Streamlit Cloud)
+    import cv2
+    import torch
+
     frames = []
+    cap = cv2.VideoCapture(video_path)
 
-    video_fps = int(cap.get(cv2.CAP_PROP_FPS))
-    interval = max(video_fps // fps, 1)
+    if not cap.isOpened():
+        return "Invalid video", 0.0, 0
 
-    count = 0
-    while True:
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    step = max(total_frames // max_frames, 1)
+
+    idx = 0
+    while len(frames) < max_frames:
         ret, frame = cap.read()
         if not ret:
             break
 
-        if count % interval == 0:
+        if idx % step == 0:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frames.append(Image.fromarray(frame))
+            img = preprocess_image(frame)
+            frames.append(img)
 
-        count += 1
+        idx += 1
 
     cap.release()
-    return frames
 
-def predict_video(model, source, from_url=False):
-    if from_url:
-        r = requests.get(source)
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-        tmp.write(r.content)
-        video_path = tmp.name
-    else:
-        video_path = source
+    if len(frames) == 0:
+        return "No frames extracted", 0.0, 0
 
-    frames = extract_frames(video_path)
-    probs = []
+    batch = torch.stack(frames)
 
     with torch.no_grad():
-        for frame in frames:
-            img = transform(frame).unsqueeze(0)
-            output = model(img)
-            prob_fake = torch.softmax(output, dim=1)[0, 0].item()
-            probs.append(prob_fake)
+        outputs = model(batch)
+        probs = torch.softmax(outputs, dim=1)
+        fake_probs = probs[:, 1].cpu().numpy()
 
-    mean_prob = np.mean(probs)
-    label = "FAKE" if mean_prob > 0.5 else "REAL"
-    confidence = mean_prob if label == "FAKE" else (1 - mean_prob)
+    confidence = float(np.mean(fake_probs))
+    label = "Fake" if confidence > 0.5 else "Real"
 
     return label, confidence, len(frames)
